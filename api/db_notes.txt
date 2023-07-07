@@ -1,0 +1,104 @@
+
+CREATING A TABLE
+from django.db import models
+
+class Question(models.Model):
+
+CREATING A FOREIGN KEY (one-to-many relationship)
+class Choice(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.RESTRICT) # first param is parent table, second is deletion mode
+    votes = models.IntegerField('number of votes', default=0)
+
+Giving human-readable name for a field
+Pass in the verbose name as the first parameter when declaring the field
+E.g votes field above: votes = models.IntegerField('number of votes', default=0)
+
+
+DateTimeField
+You might want to set the default value as the current datetime. Using an actual date or datetime value is probably wrong;
+it's only evaluated on server startup.
+
+from django.utils import timezone  # Use django's timezone module with TIME_ZONE set to 'utc' and USE_TZ set to True in settings.py
+
+date_published = models.DateTimeField(default=timezone.now())  # this will set the value only once and will be the same for all records
+
+Instead do:
+date_published = models.DateTimeField(default=timezone.now) # without the parentheses
+or set it manually wherever you're using it in your app
+
+PLAYING AROUND WITH THE DJANGO API
+Type 'python manage.py shell' in the terminal. Don't just type 'python' because the latter doesn't set up the environment for you.
+
+Getting primary key after saving: table = TableName() --- table.save() ---- table.id
+Updating after saving: table.field_name = new_value ---- table.save()
+
+*** It’s important to add __str__() methods to your models, not only for your own convenience when dealing with the interactive prompt, but also because objects’
+representations are used throughout Django’s automatically-generated admin ***
+
+
+FETCHING DATA FROM DB
+You'll access data through your model's name.
+
+Getting a single object through field name, e.g pk: TableName.objects.get(id=1)
+Getting multiple objects through field name: TableName.objects.filter(field_name='value') - will return a QuerySet instead, not single item
+Fetching objects through matching:
+    Use double underscores '__'
+
+The API automatically follows relationships as far as you need.
+Use double underscores to separate relationships, and parameters for fetching records.
+This works as many levels deep as you want; there's no limit.
+
+    TableName.objects.filter(question_text__startswith='Is')
+
+    Fetching parent table data from child by filtering:
+    Choice.objects.get(question__question_text__contains='are') # example
+
+    Accessing child table data from parent:
+    parentrecord.childtablename_set.filter(childfieldname__contains='parameter')
+    # childtablename_set points you to the child table API
+    # Remember, don't do ParentTable.childtablename_set, instead, access the child records through api of a particular record
+    # so do, parentrecord.childtablename_set
+
+    Creating new child records fromt the parent table
+    parentrecord.childtablename_set.create(field_name1=..., field_name2=...)
+
+    Getting all child records from parent
+    parentrecord.childtablename_set.all()
+
+    Getting a particular child record from parent
+    parentrecord.childtablename_set.get(field_name='value')
+
+    Loading the related parent table record from the child
+    child.parent  # just like that you've loaded the parent record
+
+    Counting number of related child table records from parent
+    parentrecord.childtablename_set.count() # will perform 'SELECT COUNT' query
+    # Remember, it's not parentrecord.childtablename_set.all().count() or len(parentrecord.childtablename_set.all())
+
+
+    THE ABOVE IS A BLUEPRINT BUT LUCKILY YOU DON'T HAVE TO MEMORIZE ALL THE PATTERNS.
+    PyCharm AUTOCOMPLETE AND SUGGESTIONS HAS GOT YOUR BACK. WORKS LIKE A CHARM !!!
+
+
+OPTIONS FOR CREATING A NEW CHILD RECORD IN A CHILD TABLE
+1. Use the child table directly
+child = ChildTable(parent=parent_record, field_name1=..., field_name2=...)  # you must set the parent record. The variable MUST be an instance of the parent model class
+child.save()
+
+2. Use the record set API of a particular parent record
+parent = Parents.objects.get(field_name_param=parameter)
+parent.childtablename_set.create(child_field1=..., child_field2=...)  # now in this case you won't have to pass in an instance parent model class in the arguments
+                                                                      # pass in the rest of the arguments as if you were passing them in from the child table
+
+
+DELETING A MODEL RECORD
+particualrecord.delete()
+
+FETCHING RECORDS BY ORDERING (ascending and descending)
+Ascending: TableName.objects.order_by('field_name')  # ascending order
+Ascending: TableName.objects.order_by('-field_name')  # descending order. Note the difference; putting the hyphen '-' before the field name returns
+                                                      # queries in descending order
+
+
+If you only want to select the id and text fields of the Question model, you can chain a values() method call to the queryset:
+idk_questions = Question.objects.filter(choices__text__icontains='idk').values('id', 'text')
